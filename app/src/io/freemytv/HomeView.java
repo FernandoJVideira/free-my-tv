@@ -819,8 +819,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private void updateSleep() {
-        boolean here = Prefs.sleepShown() && !android.provider.Settings.canDrawOverlays(getContext());   // else SleepOverlay
-        int left = here ? SleepTimer.minutesLeft(getContext()) : 0;
+        int left = Prefs.sleepShown() ? SleepTimer.minutesLeft(getContext()) : 0;
+        if (left > 0 && android.provider.Settings.canDrawOverlays(getContext())) left = 0;   // SleepOverlay shows it
         String text = left == 0 ? "" : Ui.trf("Off in {time}", "time", SleepTimer.duration(left));
         if (text.equals(sleepText)) return;
         sleepText = text;
