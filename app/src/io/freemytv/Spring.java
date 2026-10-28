@@ -36,6 +36,6 @@ final class Spring {
     }
 
     boolean settled() {
-        return Math.abs(value - target) < 0.0008f && Math.abs(velocity) < 0.004f;
+        return Math.abs(value - target) < 0.0015f && Math.abs(velocity) < 0.012f;
     }
 }
