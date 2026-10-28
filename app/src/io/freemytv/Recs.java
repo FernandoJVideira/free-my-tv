@@ -995,7 +995,7 @@ final class Recs {
         c.setReadTimeout(15000);
         c.setInstanceFollowRedirects(false);   // the token must not follow a redirect to another host
         c.setRequestProperty("Accept", "application/json");
-        c.setRequestProperty("X-Emby-Token", Config.JELLYFIN_TOKEN.trim());
+        c.setRequestProperty("Authorization", "MediaBrowser Token=\"" + Config.JELLYFIN_TOKEN.trim() + "\"");
         return c;
     }
 
