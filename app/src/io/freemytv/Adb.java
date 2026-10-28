@@ -36,7 +36,7 @@ import javax.crypto.Cipher;
 /**
  * ADB client that talks to the TV itself (127.0.0.1:5555, open while debugging is on). It's what lets the app switch
  * the home screen and the screensaver, and turn off apps, without a computer. The first time, the TV asks
- * "Allow USB debugging?" and you accept with "Always allow". Only HomeMode uses it, and only with its own fixed
+ * "Allow USB debugging?" and you accept with "Always allow". Only HomeMode and KeyWatcher use it, and only with their own fixed
  * commands (nothing from outside).
  * Protocol: https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/protocol.txt
  */
@@ -179,6 +179,48 @@ final class Adb implements Closeable {
                 if (remote == 0 && m.arg0 == 0) throw new IOException(Ui.tr("ADB refused the command"));
                 send(CLSE, local, m.arg0, null);
                 return result.toString("UTF-8");
+            }
+        }
+    }
+
+    /**
+     * Opens the TV's interactive shell (it has a terminal, so a program prints as it goes instead of in blocks), runs
+     * `command` and hands each line to `sink` until it returns false or the shell ends. Waits without a time limit:
+     * close() from another thread ends it.
+     */
+    void watch(String command, java.util.function.Predicate<String> sink) throws IOException {
+        socket.setSoTimeout(0);
+        int local = nextLocalId++;
+        send(OPEN, local, 0, "shell:\0".getBytes(StandardCharsets.US_ASCII));
+        int remote = 0;
+        boolean sent = false;
+        StringBuilder line = new StringBuilder();
+        while (true) {
+            Message m = read();
+            if (m.arg1 != local) continue;
+            if (m.command == OKAY) {
+                if (!sent) {   // the shell is open: its first OKAY names it; the later ones answer our one write
+                    sent = true;
+                    remote = m.arg0;
+                    send(WRTE, local, remote, (command + "\n").getBytes(StandardCharsets.UTF_8));
+                }
+            } else if (m.command == WRTE) {
+                send(OKAY, local, m.arg0, null);
+                for (byte b : m.data) {
+                    if (b == '\n') {
+                        String text = line.toString();
+                        line.setLength(0);
+                        if (!sink.test(text)) {
+                            send(CLSE, local, m.arg0, null);
+                            return;
+                        }
+                    } else if (b != '\r') {
+                        line.append((char) (b & 0xff));
+                    }
+                }
+            } else if (m.command == CLSE) {
+                send(CLSE, local, m.arg0, null);
+                return;
             }
         }
     }

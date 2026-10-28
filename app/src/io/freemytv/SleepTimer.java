@@ -30,9 +30,9 @@ final class SleepTimer {
 
     /** Minutes left, rounded up; 0 when off. A one-shot alarm is gone once it went off or the TV restarted. */
     static int minutesLeft(Context c) {
-        if (alarm(c, 0, PendingIntent.FLAG_NO_CREATE) == null) return 0;
         long left = Prefs.sleepAt() - System.currentTimeMillis();
-        return left <= 0 ? 0 : (int) ((left + 59_999) / 60_000);
+        if (left <= 0 || alarm(c, 0, PendingIntent.FLAG_NO_CREATE) == null) return 0;   // nothing set: no question for the system
+        return (int) ((left + 59_999) / 60_000);
     }
 
     /**

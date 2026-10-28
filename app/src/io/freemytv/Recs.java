@@ -140,6 +140,7 @@ final class Recs {
         SERVICE_NAME.put("amediateka", "Амедиатека");
         SERVICE_NAME.put("wink", "Wink");
         SERVICE_NAME.put("plex", "Plex");
+        SERVICE_NAME.put("jellyfin", "Jellyfin");
     }
     /** Country for "what streams where" (config.properties "tmdb_region", e.g. US, GB, BR). */
     static final String REGION = Place.region();
@@ -319,7 +320,7 @@ final class Recs {
         boolean plex = false;
         for (int i = 0; i < list.size() && out.size() < cards; i++) {
             Pick p = list.get((int) ((hour * cards + i) % list.size()));
-            if (p.id < 0 && plex) continue;   // a Plex title is the surprise: one per tab, not the movie and the show together
+            if (p.id < 0 && plex) continue;   // a title of your own library is the surprise: one per tab, not the movie and the show together
             if (seen.add(franchise(p.title))) {
                 out.add(p);
                 plex |= p.id < 0;
@@ -553,11 +554,12 @@ final class Recs {
         List<Pick> newMovies = new ArrayList<>(), newShows = new ArrayList<>();
         for (int i = 0; i < movies.length(); i++) add(newMovies, movies.getJSONObject(i), "movie");
         for (int i = 0; i < shows.length(); i++) add(newShows, shows.getJSONObject(i), "tv");
-        // One title of your Plex library per kind (one of the newest 8, another each time the list is made) among the
-        // trending ones: a surprise, not half the row. Its images come now, so a server that sleeps later leaves no gray card.
+        // One title of your Plex and of your Jellyfin library per kind (one of the newest 8, another each time the list is
+        // made) among the trending ones: a surprise, not half the row. Their images come now, so a server that sleeps later
+        // leaves no gray card.
+        long turn = System.currentTimeMillis() / 3600_000L;
         if (plexOn()) {
             try {
-                long turn = System.currentTimeMillis() / 3600_000L;
                 hotMovies = interleave(hotMovies, withImages(oneOf(plexPicks("movie"), (int) turn)));
                 hotShows = interleave(hotShows, withImages(oneOf(plexPicks("tv"), (int) turn)));
             } catch (Exception e) {
@@ -565,6 +567,16 @@ final class Recs {
             }
         } else if (!Config.PLEX_URL.trim().isEmpty()) {
             AppLog.w("plex: plex_url must be an https://….plex.direct address (and plex_token set): ignored");
+        }
+        if (jellyfinOn()) {
+            try {
+                hotMovies = interleave(hotMovies, withImages(oneOf(jellyfinPicks("movie"), (int) turn)));
+                hotShows = interleave(hotShows, withImages(oneOf(jellyfinPicks("tv"), (int) turn)));
+            } catch (Exception e) {
+                AppLog.w("jellyfin: " + e);
+            }
+        } else if (!Config.JELLYFIN_URL.trim().isEmpty()) {
+            AppLog.w("jellyfin: jellyfin_url must be https:// (and jellyfin_token set): ignored");
         }
         // Trending first, then the new releases; movies and shows alternating, without repeats, up to 24.
         List<Pick> list = new ArrayList<>();
@@ -604,7 +616,7 @@ final class Recs {
                 download(pick);
                 out.add(pick);
             } catch (IOException e) {
-                AppLog.w("plex image: " + e.getMessage());
+                AppLog.w("library image: " + e.getMessage());
             }
         }
         return out;
@@ -781,11 +793,34 @@ final class Recs {
      */
     private boolean installed(String pkg) {
         for (String[] s : SERVICES) if (s[2].equals(pkg) && Prefs.serviceOff(s[1])) return false;
-        return HomeApps.launchIntent(context.getPackageManager(), pkg) != null;
+        return hasLauncher(pkg);
+    }
+
+    /** Which apps have a launcher, asked of Android once a minute (or after a package changes): each ask is a ~2 ms query, and Home presses ask for every service. */
+    private final Map<String, Boolean> launchers = new HashMap<>();
+    private long launchersAt;
+
+    private synchronized boolean hasLauncher(String pkg) {
+        long up = android.os.SystemClock.uptimeMillis();
+        if (up < launchersAt || up - launchersAt > 60_000L) {
+            launchers.clear();
+            launchersAt = up;
+        }
+        Boolean has = launchers.get(pkg);
+        if (has == null) {
+            has = HomeApps.launchIntent(context.getPackageManager(), pkg) != null;
+            launchers.put(pkg, has);
+        }
+        return has;
+    }
+
+    /** An app was installed, removed or updated: ask Android again next time. */
+    synchronized void packagesChanged() {
+        launchers.clear();
     }
 
     private long sourceStamp() {
-        long stamp = ((key().hashCode() * 31L + REGION.hashCode()) * 31L + (Config.HIDE_ANIMATION ? 1 : 0)) * 31L + Config.PLEX_URL.hashCode();
+        long stamp = ((key().hashCode() * 31L + REGION.hashCode()) * 31L + (Config.HIDE_ANIMATION ? 1 : 0)) * 31L + Config.PLEX_URL.hashCode() * 31L + Config.JELLYFIN_URL.hashCode();
         for (String[] service : SERVICES) stamp = stamp * 31L + (installed(service[2]) ? service[2].hashCode() : 0);
         return stamp;
     }
@@ -964,18 +999,93 @@ final class Recs {
         return out.size() > 8 ? out.subList(0, 8) : out;
     }
 
+    // MARK: - Jellyfin (your own library: config.properties "jellyfin_url" and "jellyfin_token")
+
+    /** Only https://: the app doesn't allow plain http (the token would cross the network in the clear). */
+    private static boolean jellyfinOn() {
+        String url = Config.JELLYFIN_URL.trim();
+        if (Config.JELLYFIN_TOKEN.trim().isEmpty() || !url.startsWith("https://")) return false;
+        try {
+            return new java.net.URI(url).getHost() != null;
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private static HttpURLConnection jellyfinOpen(String path) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(Config.JELLYFIN_URL.trim().replaceAll("/+$", "") + path).openConnection();
+        c.setConnectTimeout(5000);
+        c.setReadTimeout(15000);
+        c.setInstanceFollowRedirects(false);   // the token must not follow a redirect to another host
+        c.setRequestProperty("Accept", "application/json");
+        c.setRequestProperty("Authorization", "MediaBrowser Token=\"" + Config.JELLYFIN_TOKEN.trim() + "\"");
+        return c;
+    }
+
+    private static JSONObject jellyfinGet(String path) throws Exception {
+        HttpURLConnection c = jellyfinOpen(path);
+        try {
+            int code = c.getResponseCode();
+            if (code == 401) throw new IOException("Jellyfin refused jellyfin_token");
+            if (code != 200) throw new IOException("Jellyfin returned HTTP " + code);
+            return new JSONObject(read(c.getInputStream()));
+        } finally {
+            c.disconnect();
+        }
+    }
+
+    /** The newest movies ("movie") or shows ("tv") in the Jellyfin libraries, up to 8. Negative id: apart from TMDB's. */
+    private List<Pick> jellyfinPicks(String kind) throws Exception {
+        List<Pick> out = new ArrayList<>();
+        JSONArray items = jellyfinGet("/Items?Recursive=true&IncludeItemTypes=" + (kind.equals("movie") ? "Movie" : "Series")
+                + "&SortBy=DateCreated&SortOrder=Descending&Limit=8&ImageTypes=Backdrop&Fields=Genres,ChildCount")
+                .optJSONArray("Items");
+        for (int i = 0; items != null && i < items.length(); i++) {
+            JSONObject m = items.getJSONObject(i);
+            JSONArray tags = m.optJSONArray("BackdropImageTags");
+            if (tags == null || tags.length() == 0) continue;
+            String id = m.getString("Id");
+            Pick p = new Pick();
+            p.id = -Math.max(1, id.hashCode() & 0x7fffffff);
+            p.kind = kind;
+            p.title = m.optString("Name");
+            p.backdrop = "/Items/" + id + "/Images/Backdrop/0?tag=" + tags.getString(0);   // the tag changes with the image
+            String primary = m.optJSONObject("ImageTags") == null ? "" : m.getJSONObject("ImageTags").optString("Primary");
+            p.poster = primary.isEmpty() ? "" : "/Items/" + id + "/Images/Primary?tag=" + primary;
+            p.app = "jellyfin";
+            p.pkg = "org.jellyfin.androidtv";   // opens the app: its title pages have no address other apps can open
+            List<String> parts = new ArrayList<>();
+            if (kind.equals("tv")) parts.add(Ui.tr("Series"));
+            JSONArray genres = m.optJSONArray("Genres");
+            if (genres != null && genres.length() > 0) parts.add(genre(genres.getString(0)));
+            String length = kind.equals("movie") ? runtime((int) (m.optLong("RunTimeTicks") / 600_000_000L)) : seasons(m.optInt("ChildCount"));
+            if (length != null) parts.add(length);
+            parts.add("Jellyfin");
+            p.meta = String.join(" · ", parts);
+            p.detailed = true;
+            out.add(p);
+        }
+        return out;
+    }
+
+    /** A picture of one of your own library's titles (Plex or Jellyfin), `size` as "width=…&height=…". */
+    private static HttpURLConnection ownImage(Pick p, String image, String size) throws IOException {
+        if ("jellyfin".equals(p.app)) return jellyfinOpen(image + "&" + size.replace("width=", "maxWidth=").replace("height=", "maxHeight="));
+        return plexOpen("/photo/:/transcode?" + size + "&minSize=1&url=" + URLEncoder.encode(image, "UTF-8"));
+    }
+
     // MARK: - Images (TMDB originals on disk, up to 24 so the whole list fits; this hour's kept ready in memory)
 
     private void download(Pick p) throws IOException {
         File f = imageFile(p);
         if (!f.exists()) fetchFile(f, p.id < 0
-                ? plexOpen("/photo/:/transcode?width=1920&height=1080&minSize=1&url=" + URLEncoder.encode(p.backdrop, "UTF-8"))
+                ? ownImage(p, p.backdrop, "width=1920&height=1080")
                 : (HttpURLConnection) new URL(IMAGES + p.backdrop).openConnection());
         File poster = posterFile(p);
         if (poster == null || poster.exists()) return;
         try {   // the narrow cards: without a poster they crop the backdrop
             fetchFile(poster, p.id < 0
-                    ? plexOpen("/photo/:/transcode?width=500&height=750&minSize=1&url=" + URLEncoder.encode(p.poster, "UTF-8"))
+                    ? ownImage(p, p.poster, "width=500&height=750")
                     : (HttpURLConnection) new URL(POSTERS + p.poster).openConnection());
         } catch (IOException e) {
             AppLog.w("poster: " + e.getMessage());
