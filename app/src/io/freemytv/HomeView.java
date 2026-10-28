@@ -2235,6 +2235,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     };
 
     private void appsChanged() {
+        recs.packagesChanged();
         appsStale = true;
         if (running) reloadSoon();
     }

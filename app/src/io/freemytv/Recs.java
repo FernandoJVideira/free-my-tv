@@ -793,7 +793,30 @@ final class Recs {
      */
     private boolean installed(String pkg) {
         for (String[] s : SERVICES) if (s[2].equals(pkg) && Prefs.serviceOff(s[1])) return false;
-        return HomeApps.launchIntent(context.getPackageManager(), pkg) != null;
+        return hasLauncher(pkg);
+    }
+
+    /** Which apps have a launcher, asked of Android once a minute (or after a package changes): each ask is a ~2 ms query, and Home presses ask for every service. */
+    private final Map<String, Boolean> launchers = new HashMap<>();
+    private long launchersAt;
+
+    private synchronized boolean hasLauncher(String pkg) {
+        long up = android.os.SystemClock.uptimeMillis();
+        if (up < launchersAt || up - launchersAt > 60_000L) {
+            launchers.clear();
+            launchersAt = up;
+        }
+        Boolean has = launchers.get(pkg);
+        if (has == null) {
+            has = HomeApps.launchIntent(context.getPackageManager(), pkg) != null;
+            launchers.put(pkg, has);
+        }
+        return has;
+    }
+
+    /** An app was installed, removed or updated: ask Android again next time. */
+    synchronized void packagesChanged() {
+        launchers.clear();
     }
 
     private long sourceStamp() {
