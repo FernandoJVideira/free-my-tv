@@ -44,12 +44,6 @@ final class RemoteKeys {
      * devices we run on, whose remotes have a Home button; Formovie's Xiaomi projectors have their own remote.
      */
     static final boolean XIAOMI = is("Xiaomi") && !FORMOVIE && Build.MODEL.startsWith("MiTV-M");
-    /**
-     * Xiaomi's Mi Box S / Mi Box 4 (MIBOX4, Amlogic, Android TV 9 tested): its Bluetooth remote (Xiaomi RC) sends Netflix
-     * as scan code 393 (the TV's key layout calls it NETFLIX) and its Live TV button as 399 (BUTTON_2); the system
-     * opens those apps itself, so, as on Sony, the scan code is what the buttons are told apart by.
-     */
-    static final boolean MIBOX = is("Xiaomi") && Build.MODEL.startsWith("MIBOX");
     /** Brands whose Netflix button is STEM_1, a global key (MediaTek): only that button is ours. */
     static final boolean STEM_NETFLIX = VESTEL || FORMOVIE;
     /**
@@ -64,7 +58,7 @@ final class RemoteKeys {
     private static long lastDown;
 
     static boolean supported() {
-        return TCL || STEM_NETFLIX || KTC || SONY || XIAOMI || HISENSE || MIBOX;
+        return TCL || STEM_NETFLIX || KTC || SONY || XIAOMI || HISENSE;
     }
 
     /** The key service is on only where the filter is safe, and while a button opens something (else it has no work). */
@@ -92,7 +86,6 @@ final class RemoteKeys {
                 || keyCode == KeyEvent.KEYCODE_BUTTON_9)) {
             keyCode = Prefs.SONY_KEY + e.getScanCode();
         }
-        if (MIBOX && (e.getScanCode() == 393 || e.getScanCode() == 399)) keyCode = Prefs.MIBOX_KEY + e.getScanCode();
         boolean ours = false;
         for (int key : Prefs.KEYS) ours |= key == keyCode;
         if (!ours) return false;

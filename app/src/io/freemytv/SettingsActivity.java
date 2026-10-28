@@ -1039,7 +1039,6 @@ public class SettingsActivity extends Activity {
                     Ui.tr("Disney+ button"), Ui.tr("All Apps button"), Ui.tr("Settings button"), Ui.tr("Profile button")};
             if (RemoteKeys.STEM_NETFLIX) return new String[] {Ui.tr("Netflix button")};
             if (RemoteKeys.KTC) return new String[] {Ui.tr("Tabii button")};
-            if (RemoteKeys.MIBOX) return new String[] {Ui.tr("Netflix button"), Ui.tr("Live TV")};
             if (RemoteKeys.XIAOMI) return new String[] {Ui.tr("Mi button"), Ui.tr("YouTube button"), Ui.tr("PatchWall button"),
                     Ui.tr("Okko button"), Ui.tr("VK button"), Ui.tr("Rutube button"), Ui.tr("KION button"),
                     Ui.tr("Wink button"), Ui.tr("IVI button")};
@@ -1071,7 +1070,7 @@ public class SettingsActivity extends Activity {
             appLabels.clear();
             appPkgs.add("");
             // On Sony and Xiaomi, "nothing" leaves the key to the TV, which opens its usual app.
-            appLabels.add(RemoteKeys.SONY ? Ui.tr("Sony default") : RemoteKeys.XIAOMI || RemoteKeys.MIBOX ? Ui.tr("Xiaomi default") : Ui.tr("Nothing"));
+            appLabels.add(RemoteKeys.SONY ? Ui.tr("Sony default") : RemoteKeys.XIAOMI ? Ui.tr("Xiaomi default") : Ui.tr("Nothing"));
             // On Xiaomi the Mi button is the remote's Home button: it can open this home screen.
             if (RemoteKeys.XIAOMI) {
                 appPkgs.add(HomeMode.PKG);
@@ -1773,7 +1772,7 @@ public class SettingsActivity extends Activity {
                         : RemoteKeys.KTC ? Ui.tr("Netflix, YouTube and Prime Video: the TV itself controls those buttons.")
                         : RemoteKeys.SONY ? Ui.tr("Sony default: the button opens what it always did.")
                         : RemoteKeys.FORMOVIE ? Ui.tr("The other buttons: the TV itself controls them.")
-                        : RemoteKeys.XIAOMI || RemoteKeys.MIBOX ? Ui.tr("Xiaomi default: the button opens what it always did.")
+                        : RemoteKeys.XIAOMI ? Ui.tr("Xiaomi default: the button opens what it always did.")
                         : RemoteKeys.HISENSE ? Ui.tr("Netflix: the TV itself controls that button.")
                         : RemoteKeys.supported() ? Ui.tr("Disney and Globoplay: the TV itself controls those buttons.")
                         : Ui.tr("TCL remote buttons: on this TV they work as always."), LIST_X * k + 30 * k, hy + 38 * k, hint);
