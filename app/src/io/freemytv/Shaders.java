@@ -304,6 +304,10 @@ final class Shaders {
      * fetch (they shift ~1 min a day, so yesterday's times are fine today); without data, 5:30 and 17:40.
      */
     static void sky(Palette out, long now, long sunrise, long sunset) {
+        if (Prefs.theme().equals("dark")) {   // always dark: the night sky whatever the hour
+            out.set(NIGHT[0], NIGHT[1], NIGHT[2]);
+            return;
+        }
         java.util.Calendar cal = java.util.Calendar.getInstance();
         cal.setTimeInMillis(now);
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0);

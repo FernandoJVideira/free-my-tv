@@ -156,7 +156,7 @@ public class SettingsActivity extends Activity {
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 186, ROW_GAP = 8, CHOICE_H = 104;
         // The main menu: eight rows, then the comparison, the picks (with the Watchmode credit) and two notices, all on
         // one 1080 px screen: the rows share the 462 px that seven took.
-        private static final float MAIN_TOP = 140, ROW_H = 53.75f, MAIN_GAP = 4;
+        private static final float MAIN_TOP = 124, ROW_H = 52, MAIN_GAP = 6;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -550,6 +550,8 @@ public class SettingsActivity extends Activity {
                 c.restore();
                 y += errorLayout.getLineBaseline(errorLayout.getLineCount() - 1) - errorLayout.getLineBaseline(0) + 46 * k;
             }
+            drawCard(c, y - 8 * k, h - 24 * k);
+            y += 30 * k;
             y = drawComparison(c, y);
             y = drawRecs(c, y + 26 * k);
             drawNotices(c, y + 40 * k);
@@ -578,23 +580,33 @@ public class SettingsActivity extends Activity {
             return y + (Config.WATCHMODE_KEY.trim().isEmpty() ? 78 : 108) * k;
         }
 
-        /** List row: no background; focused, white with a shadow (the Apple TV focus). Returns how focused it is. */
+        /** List row, tvOS style: a quiet rounded cell, and the focused one lifts into a white pill with a shadow. Returns how focused it is. */
         private float drawRowBackground(Canvas c, int i) {
             float f = Ui.clamp(pop[i].value);
+            white.setColor(Ui.alpha(0xFFFFFFFF, 0.09f * (1 - f)));
+            c.drawRoundRect(rowRect, 16 * k, 16 * k, white);
             if (f > 0.01f) {
-                float s = 1 + 0.02f * f;
+                float s = 1 + 0.03f * f;
                 float cx = rowRect.centerX(), cy = rowRect.centerY();
                 tmp.set(cx - rowRect.width() * s / 2, cy - rowRect.height() * s / 2, cx + rowRect.width() * s / 2, cy + rowRect.height() * s / 2);
-                float r = 18 * k * s;
-                tmp.offset(0, 10 * k * f);
-                shadow.setColor(Ui.alpha(0xFF000000, 0.4f * f));
+                float r = 16 * k * s;
+                tmp.offset(0, 12 * k * f);
+                shadow.setColor(Ui.alpha(0xFF000000, 0.45f * f));
                 c.drawRoundRect(tmp, r, r, shadow);
-                tmp.offset(0, -10 * k * f);
+                tmp.offset(0, -12 * k * f);
+                white.setColor(0xFFF5F5F7);
                 white.setAlpha(Math.round(255 * f));
                 c.drawRoundRect(tmp, r, r, white);
                 rowRect.set(tmp);
             }
             return f;
+        }
+
+        /** The info block under the list: the same cell, not focusable. */
+        private void drawCard(Canvas c, float top, float bottom) {
+            tmp.set(LIST_X * k, top, LIST_R * k, bottom);
+            white.setColor(0x17FFFFFF);
+            c.drawRoundRect(tmp, 16 * k, 16 * k, white);
         }
 
         private float drawComparison(Canvas c, float y) {
@@ -627,7 +639,7 @@ public class SettingsActivity extends Activity {
                 JSONObject o = notices.optJSONObject(i);
                 if (o == null) continue;
                 String line = ago(o.optLong("at")) + " · " + o.optString("text");
-                c.drawText(TextUtils.ellipsize(line, notice, 790 * k, TextUtils.TruncateAt.END).toString(), x, y + (42 + 38 * shown) * k, notice);
+                c.drawText(TextUtils.ellipsize(line, notice, 750 * k, TextUtils.TruncateAt.END).toString(), x, y + (42 + 38 * shown) * k, notice);
                 shown++;
             }
             if (shown == 0) c.drawText(Ui.tr("None yet."), x, y + 42 * k, notice);
