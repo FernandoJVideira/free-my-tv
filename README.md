@@ -144,6 +144,7 @@ The first values come from `config.properties`, created by the first build (Goog
 | `tmdb_region` | Your country (two letters): which titles are on which app | `US` |
 | `watchmode_key` | Optional, free [Watchmode](https://api.watchmode.com/) key: a pick opens the title's page in its app | empty |
 | `plex_url` and `plex_token` | Optional, your Plex server's `plex.direct` address and token: its newest titles join the picks and open on their page | empty |
+| `jellyfin_url` and `jellyfin_token` | Optional, your Jellyfin server's `https://` address and an API key: its newest titles join the picks and open the Jellyfin app | empty |
 | `latitude`, `longitude` | Your city, for the weather and the sunset | New York |
 | `city` | The name on the weather card | `Weather` |
 | `hide_animation` | Leave cartoons and anime out of the picks | `false` |
@@ -198,6 +199,13 @@ This is for Google TV and Android TV, and it needs the TMDB key and at least one
 - **`plex_token`** is on the same address, after `X-Plex-Token=`. It gives access to your Plex account, and any app on the TV can read the APK it is built into, so use the token of a Plex Home *managed user* with access to your libraries, not your own, and never commit it.
 
 The TV talks to your server directly on your network. If the server can't be reached, the other picks load as usual.
+
+### Your Jellyfin library (optional)
+
+Set `jellyfin_url` and `jellyfin_token` in `config.properties` and, like Plex above, one of the newest movies and one of the newest shows of your Jellyfin server join the picks, with their own poster and backdrop, tagged "Jellyfin". Selecting one opens the Jellyfin app (it has no address that opens a title's page from outside). If the server can't be reached, its titles are left out. Google TV and Android TV only, with the same TMDB key requirement as Plex.
+
+- **`jellyfin_url`** must be `https://` (the app doesn't allow plain http, so the token never crosses your network in the clear), e.g. `https://jellyfin.example.com`.
+- **`jellyfin_token`** is an API key (*Dashboard → API Keys*) or a user's access token. Any app on the TV can read the APK it is built into, so don't commit it.
 
 ## Going back
 
@@ -304,7 +312,7 @@ reference (fix them by hand); the others were machine-made, and corrections from
 
 ## Privacy
 
-No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with the coordinates you set, or your time zone's main city), and Binance only when `show_crypto=true`, Watchmode only when you set a `watchmode_key`, and your Plex server only when you set a `plex_url`. On Google TV and Android TV, the APK from the release asks GitHub (api.github.com) once a week, or when you press *Updates*, for the latest release, and when there's a newer one downloads it from github.com and GitHub's download server (release-assets.githubusercontent.com); a build you made yourself asks only when you press *Updates*. The *Now Playing widget* reads what apps are playing (title, artist, the app) through a notification listener, the only way Android shares it: Free My TV allows the listener only while the widget is on, never reads a notification with it, and asks Android to unbind it as soon as it connects, so it stays unbound. What's playing never leaves the TV. While *Home Settings* → *TMDB key* shows its QR code (5 minutes at most), the TV answers on your home network at that code's address, for one key; the key goes to TMDB only, to check it. Your settings stay on your computer and your TV.
+No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with the coordinates you set, or your time zone's main city), and Binance only when `show_crypto=true`, Watchmode only when you set a `watchmode_key`, your Plex server only when you set a `plex_url`, and your Jellyfin server only when you set a `jellyfin_url`. On Google TV and Android TV, the APK from the release asks GitHub (api.github.com) once a week, or when you press *Updates*, for the latest release, and when there's a newer one downloads it from github.com and GitHub's download server (release-assets.githubusercontent.com); a build you made yourself asks only when you press *Updates*. The *Now Playing widget* reads what apps are playing (title, artist, the app) through a notification listener, the only way Android shares it: Free My TV allows the listener only while the widget is on, never reads a notification with it, and asks Android to unbind it as soon as it connects, so it stays unbound. What's playing never leaves the TV. While *Home Settings* → *TMDB key* shows its QR code (5 minutes at most), the TV answers on your home network at that code's address, for one key; the key goes to TMDB only, to check it. Your settings stay on your computer and your TV.
 
 ## Credits
 
