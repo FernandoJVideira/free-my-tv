@@ -9,6 +9,15 @@ import android.view.accessibility.AccessibilityEvent;
  * system waits for it on every key (up to half a second), so it runs in a process of its own and does next to nothing.
  */
 public class RemoteKeyService extends AccessibilityService {
+    @Override protected void onServiceConnected() {
+        if (RemoteKeys.MIBOX) KeyWatcher.start(this);   // its Netflix and Live TV buttons never get to onKeyEvent
+    }
+
+    @Override public boolean onUnbind(android.content.Intent intent) {
+        KeyWatcher.stop();
+        return super.onUnbind(intent);
+    }
+
     @Override protected boolean onKeyEvent(KeyEvent event) {
         return RemoteKeys.onKey(this, event);
     }

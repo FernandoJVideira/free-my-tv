@@ -328,6 +328,12 @@ entries; its system pieces are in `PROTECTED`. USB debugging opens ADB on 5555 t
   VK, `_16` for Rutube, `_11` for KION, `_10` for Wink and `_12` for IVI, global keys for Xiaomi's hot-key receiver
   (`com.xiaomi.android.tvsetup.partnercustomizer`, its log: "dealWithHotkey keycode:199"). "Xiaomi default" (empty)
   leaves the key to the TV.
+  Xiaomi's Mi Box S / Mi Box 4 (MIBOX4, Amlogic, Android TV 9 tested; remote "Xiaomi RC", scan codes 393 for Netflix and 399
+  for Live TV) never gets those two buttons to the key service: Xiaomi's window manager opens Netflix itself ("it's a
+  netflix key", a START from uid 1000) before any key filter. `KeyWatcher`, in the `:keys` process, reads `getevent -l`
+  through the app's own ADB (an interactive shell: without a terminal getevent prints in blocks) and, when a button is
+  set, opens that app 300 ms after the key goes up, on top of what the system opened; Netflix, if it wasn't running, is
+  force-stopped (`am force-stop`, not turned off). The brief Netflix flash is unavoidable.
   Hisense (Q6N, MediaTek, Android TV 12 tested) sends `295` for Prime Video, `KEYCODE_BUTTON_3` for YouTube,
   `KEYCODE_ALL_APPS` for its All Apps (3×3) button, `KEYCODE_NOTIFICATION` for the gear and `KEYCODE_PROFILE_SWITCH`
   for the profile button, all global keys for Google TV's home app (`launcherx`), which Free My TV mode turns off, and
